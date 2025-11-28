@@ -4,6 +4,56 @@
 ### *Based on the intentionally messy FastAPI + LangGraph + Qdrant implementation provided*
 
 [![Watch the video](https://img.youtube.com/vi/NciTzm6zMbA/hqdefault.jpg)](https://www.youtube.com/watch?v=zINWveB95Zc)
+
+---
+
+## 1. Folder Structure (Clean + Hexagonal)
+
+```text
+app/
+├── main.py                    # FastAPI app factory / entrypoint
+├── core/
+│   ├── config.py              # Settings (env + defaults)
+│   ├── logging.py             # Logging setup
+│   └── container.py           # Lightweight "service container"
+├── domain/
+│   ├── models/
+│   │   └── document.py        # Domain entity
+│   ├── ports/
+│   │   ├── embeddings.py      # Embedding service port
+│   │   ├── vector_store.py    # Vector store port
+│   │   ├── workflow.py        # Workflow engine port (LangGraph, etc)
+│   │   └── state_store.py     # Debug / state store port (optional)
+├── application/
+│   ├── services/
+│   │   ├── document_service.py  # Ingest/list/delete documents
+│   │   ├── query_service.py     # RAG query flow
+│   │   └── counter_service.py   # Example stateful service
+├── infrastructure/
+│   ├── embeddings/
+│   │   └── random_embeddings.py # Current naive embedding impl
+│   ├── vectorstores/
+│   │   └── qdrant_vector_store.py   # Qdrant adapter
+│   ├── workflows/
+│   │   └── langgraph_workflow.py    # LangGraph adapter
+│   └── state/
+│       └── in_memory_state_store.py # Debug/inspection store
+├── api/
+│   ├── deps.py                 # FastAPI dependencies (DI)
+│   ├── schemas.py              # Pydantic request/response models
+│   ├── routes_documents.py     # /ingest, /batch_ingest, /documents, /documents/{id}
+│   ├── routes_query.py         # /query
+│   ├── routes_health.py        # /health
+│   ├── routes_debug.py         # /debug/state, /chaos
+│   └── routes_misc.py          # /counter
+└── __init__.py
+```
+
+You can run via:
+
+```bash
+uvicorn app.main:create_app --factory --reload
+```
 ---
 
 # **1. Analysis of the Existing Code (Design Smells & Risks)**
@@ -386,3 +436,302 @@ You now have a complete:
 * GitHub CI
 * Ready-to-scale RAG pipeline
 
+
+
+---
+
+## 1. Big Picture – What This Project Is
+
+You now have a **production-style RAG microservice**:
+
+* **FastAPI** app (HTTP interface)
+* **LangGraph** workflow engine (RAG pipeline)
+* **Qdrant** vector database (document store)
+* **Clean + Hexagonal architecture**
+* **Config profiles** (dev / staging / prod)
+* **Unit tests** with fake adapters
+* **Docker + docker-compose** for local/production
+* **GitHub Actions CI** for tests
+
+The main idea:
+
+> Build once (stable core + abstractions), then only swap adapters/config to change embeddings, vector DB, environment, or workflow.
+
+---
+
+## 2. Architecture Overview (Clean + Hexagonal)
+
+### Layers:
+
+1. **Domain** (`app/domain`)
+
+   * Pure business contracts and models
+   * Has no idea about FastAPI, Qdrant, LangGraph, Docker, etc.
+   * Ports:
+
+     * `EmbeddingsPort`
+     * `VectorStorePort`
+     * `WorkflowEnginePort`
+     * `StateStorePort`
+   * Model:
+
+     * `Document` entity
+
+2. **Application** (`app/application`)
+
+   * Orchestrates use cases
+   * Stateless services:
+
+     * `DocumentService`
+     * `QueryService`
+     * `CounterService`
+   * Depends only on **domain ports**, not concrete implementations.
+
+3. **Infrastructure** (`app/infrastructure`)
+
+   * Adapters that implement ports:
+
+     * `RandomEmbeddingsService` → `EmbeddingsPort`
+     * `QdrantVectorStore` → `VectorStorePort`
+     * `LangGraphWorkflowEngine` → `WorkflowEnginePort`
+     * `InMemoryStateStore` → `StateStorePort`
+   * Can be replaced without touching application/domain code.
+
+4. **API / Web Layer** (`app/api`)
+
+   * FastAPI routers + schemas + dependency wiring
+   * Endpoints:
+
+     * `/ingest`, `/batch_ingest`, `/documents`, `/documents/{id}`
+     * `/query`
+     * `/health`
+     * `/debug/state`, `/chaos`
+     * `/counter`
+
+5. **Core / Composition** (`app/core`)
+
+   * `Settings` + environment-specific configs (dev/staging/prod)
+   * Logging setup
+   * `AppContainer` → wires all dependencies (mini DI container)
+   * `build_container()` → single point to:
+
+     * Choose settings based on `ENVIRONMENT`
+     * Instantiate Qdrant client, embeddings, vector store, workflow, state store
+     * Instantiate services
+
+6. **Entry Point** (`app/main.py`)
+
+   * Uses FastAPI `lifespan` to build container once on startup
+   * Attaches `container` to `app.state`
+   * Includes all routers
+
+---
+
+## 3. Unit Tests with Fakes
+
+Goal: **test services without Qdrant, LangGraph, or HTTP**.
+
+### Fakes:
+
+* `FakeEmbeddings` → deterministic tiny vectors
+* `FakeVectorStore` → simple in-memory dict, mimics basic vector store behavior
+* `FakeWorkflowEngine` → returns canned retrieval + answer for any query
+
+These live in:
+
+```text
+tests/fakes/
+  fake_embeddings.py
+  fake_vector_store.py
+  fake_workflow_engine.py
+```
+
+### `tests/conftest.py`
+
+* Builds a `fake_services` fixture:
+
+  * `embeddings` = `FakeEmbeddings`
+  * `vector_store` = `FakeVectorStore`
+  * `state_store` = `InMemoryStateStore`
+  * `document_service` = real `DocumentService`, but with fakes
+  * `query_service` = real `QueryService`, but with `FakeWorkflowEngine`
+
+So your tests hit **real application logic** with **fake infrastructure**.
+
+### DocumentService tests
+
+* `test_ingest_and_list`:
+
+  * Ingest a document
+  * Push embedding + payload
+  * Assert that listing returns exactly that doc
+
+* `test_delete`:
+
+  * Ingest + upsert doc
+  * Delete it
+  * Assert list is empty
+
+### QueryService test
+
+* `test_query_service`:
+
+  * Calls `run_query("test query")`
+  * Asserts there is `final_answer` and `retrieved_docs`
+  * Ensures answer structure is correct
+
+➡️ This setup gives you **fast, deterministic tests** that don’t require any external service.
+
+Run them locally (inside project):
+
+```bash
+poetry install
+pytest
+```
+
+---
+
+## 4. Docker & docker-compose
+
+### Dockerfile
+
+* Uses **multi-stage build**:
+
+  1. **Builder stage**:
+
+     * Installs dependencies via Poetry (`pyproject.toml`)
+     * Copies `app/` code
+  2. **Runtime stage**:
+
+     * Copies Python env + app
+     * Launches using:
+
+       ```bash
+       uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000
+       ```
+
+This gives a **small final image** and proper reproducible environment.
+
+### docker-compose.yml
+
+Services:
+
+* `api`:
+
+  * Builds from local Dockerfile
+  * Exposes port 8000
+  * Env config:
+
+    * `ENVIRONMENT=prod`
+    * `QDRANT_HOST=qdrant`
+    * `QDRANT_PORT=6334`
+  * Depends on `qdrant`.
+
+* `qdrant`:
+
+  * Uses official `qdrant/qdrant` image
+  * Exposes port 6334
+  * Persists data with `qdrant_data` volume
+
+Run everything:
+
+```bash
+docker-compose up --build
+```
+
+Then hit:
+
+* `http://localhost:8000/docs` → FastAPI docs
+* Ingest/query like before, but in a clean architecture setup.
+
+---
+
+## 5. Config Profiles (dev / staging / prod)
+
+Under `app/core`:
+
+* `config.py` → base `Settings` (Pydantic Settings)
+* `config_dev.py` → `DevSettings`
+* `config_staging.py` → `StagingSettings`
+* `config_prod.py` → `ProdSettings`
+
+`build_container()` chooses settings based on:
+
+```python
+env = os.getenv("ENVIRONMENT", "dev").lower()
+```
+
+So:
+
+* `ENVIRONMENT=dev` → `DevSettings`
+* `ENVIRONMENT=staging` → `StagingSettings`
+* `ENVIRONMENT=prod` → `ProdSettings`
+
+Each profile can override:
+
+* `qdrant_host`
+* `port`
+* `log_level`
+* etc.
+
+This lets you deploy the **same code** to local/dev/staging/prod with **only env changes**.
+
+---
+
+## 6. CI Skeleton (GitHub Actions)
+
+`/.github/workflows/ci.yml`:
+
+* Triggers on:
+
+  * Push to `main` or `dev`
+  * Any PR
+* Steps:
+
+  * Checkout repo
+  * Set up Python 3.11
+  * Install dependencies via Poetry
+  * Run tests with pytest
+* Also spins up a **Qdrant service** in case later you add integration tests that depend on it.
+
+This gives you:
+
+* Automatic test runs on every PR/commit
+* Early detection of breaking changes
+
+---
+
+## 7. How to Run This Project
+
+### Locally (no Docker)
+
+```bash
+cd clean_langgraph_qdrant
+pip install poetry
+poetry install
+
+# run API
+poetry run uvicorn app.main:create_app --factory --reload
+```
+
+Make sure Qdrant is running locally (`localhost:6334`) or adjust config/env.
+
+---
+
+### With Docker & docker-compose
+
+```bash
+docker-compose up --build
+```
+
+Open: `http://localhost:8000/docs`
+
+---
+
+### Run Tests
+
+```bash
+poetry run pytest
+```
+
+---
