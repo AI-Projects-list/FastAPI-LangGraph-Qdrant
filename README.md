@@ -66,7 +66,7 @@ The design must eliminate globals and replace them with **explicit dependency in
 
 ### **Conclusion**
 
-This code violates **Single Responsibility Principle**, **Open/Closed Principle**, and is **not modular**.
+This original code violates **Single Responsibility Principle**, **Open/Closed Principle**, and is **not modular**.
 
 A clean architecture with domain ports & adapters is required.
 
