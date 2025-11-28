@@ -15,7 +15,10 @@ app/
 ├── core/
 │   ├── config.py              # Settings (env + defaults)
 │   ├── logging.py             # Logging setup
-│   └── container.py           # Lightweight "service container"
+│   ├── container.py           # Lightweight "service container"
+│   ├── config_dev.py
+│   ├── config_staging.py
+│   └── config_prod.py│
 ├── domain/
 │   ├── models/
 │   │   └── document.py        # Domain entity
@@ -47,6 +50,14 @@ app/
 │   ├── routes_debug.py         # /debug/state, /chaos
 │   └── routes_misc.py          # /counter
 └── __init__.py
+tests/
+├── conftest.py
+├── test_document_service.py
+├── test_query_service.py
+└── fakes/
+    ├── fake_embeddings.py
+    ├── fake_vector_store.py
+    └── fake_workflow_engine.py
 ```
 
 You can run via:
