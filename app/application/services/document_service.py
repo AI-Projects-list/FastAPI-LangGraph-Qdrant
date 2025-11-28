@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import List, Dict, Any
 import uuid
 
@@ -16,7 +16,7 @@ class DocumentService:
         payload = {
             "content": content,
             "metadata": metadata or {},
-            "ingested_at": datetime.utcnow().isoformat(),
+            "ingested_at": datetime.now(UTC).isoformat(),
         }
         self._state_store.save(doc_id, payload)
         return doc_id
