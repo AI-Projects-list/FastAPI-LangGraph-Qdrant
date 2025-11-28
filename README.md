@@ -3,6 +3,7 @@
 
 ### *Based on the intentionally messy FastAPI + LangGraph + Qdrant implementation provided*
 
+[![Watch the video](https://img.youtube.com/vi/NciTzm6zMbA/hqdefault.jpg)](https://www.youtube.com/watch?v=KlBUsqZJCQk)
 ---
 
 # **1. Analysis of the Existing Code (Design Smells & Risks)**
