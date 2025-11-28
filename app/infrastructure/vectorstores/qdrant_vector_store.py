@@ -1,8 +1,9 @@
 from typing import List, Dict, Any
 import logging
+from uuid import UUID
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams, Distance, PointStruct
+from qdrant_client.models import VectorParams, Distance, PointStruct, PointIdsList
 
 from app.domain.ports.vector_store import VectorStorePort
 
@@ -68,7 +69,17 @@ class QdrantVectorStore(VectorStorePort):
         return docs
 
     def delete_document(self, doc_id: str) -> None:
-        self._client.delete(
-            collection_name=self._collection_name,
-            points_selector={"points": [doc_id]},
-        )
+        try:
+            # Try to parse as UUID first
+            uuid_id = UUID(doc_id)
+            self._client.delete(
+                collection_name=self._collection_name,
+                points_selector=PointIdsList(points=[str(uuid_id)]),
+            )
+        except ValueError:
+            # If not a valid UUID, use as string
+            self._client.delete(
+                collection_name=self._collection_name,
+                points_selector=PointIdsList(points=[doc_id]),
+            )
+        logger.info(f"Deleted document {doc_id} from collection {self._collection_name}")
