@@ -12,6 +12,8 @@ uvicorn = "^0.32.0"
 qdrant-client = "^1.9.0"
 langgraph = "*"
 pydantic-settings = "^2.6.0"
+pypdf2 = "^3.0.0"
+python-multipart = "^0.0.9"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

@@ -1,7 +1,9 @@
 from typing import List
-from datetime import datetime
+from datetime import datetime, UTC
+import io
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from PyPDF2 import PdfReader
 
 from app.api.schemas import DocumentInput
 from app.api.deps import get_document_service, get_container
@@ -23,7 +25,7 @@ async def ingest_document(
         payload = {
             "content": doc.content,
             "metadata": doc.metadata or {},
-            "ingested_at": datetime.utcnow().isoformat(),
+            "ingested_at": datetime.now(UTC).isoformat(),
         }
         await document_service.ingest_with_vector(doc_id, vector, payload)
         return {"id": doc_id, "message": "Document ingested successfully"}
@@ -45,7 +47,7 @@ async def batch_ingest(
             payload = {
                 "content": doc.content,
                 "metadata": doc.metadata or {},
-                "ingested_at": datetime.utcnow().isoformat(),
+                "ingested_at": datetime.now(UTC).isoformat(),
             }
             await document_service.ingest_with_vector(doc_id, vector, payload)
             results.append({"id": doc_id, "status": "success"})
@@ -64,6 +66,89 @@ async def list_documents(
         return {"documents": docs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list documents: {e}")
+
+
+@router.post("/upload/pdf")
+async def upload_pdf(
+    file: UploadFile = File(...),
+    container: AppContainer = Depends(get_container),
+    document_service: DocumentService = Depends(get_document_service),
+):
+    """
+    Upload and ingest a PDF file.
+    The PDF will be parsed and each page will be stored as a separate document.
+    """
+    try:
+        # Validate file type
+        if not file.filename.endswith('.pdf'):
+            raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+        
+        # Read PDF content
+        pdf_bytes = await file.read()
+        pdf_file = io.BytesIO(pdf_bytes)
+        
+        # Parse PDF
+        pdf_reader = PdfReader(pdf_file)
+        total_pages = len(pdf_reader.pages)
+        
+        results = []
+        for page_num, page in enumerate(pdf_reader.pages, start=1):
+            try:
+                # Extract text from page
+                text = page.extract_text()
+                
+                if not text.strip():
+                    results.append({
+                        "page": page_num,
+                        "status": "skipped",
+                        "reason": "No text found"
+                    })
+                    continue
+                
+                # Create metadata
+                metadata = {
+                    "filename": file.filename,
+                    "page_number": page_num,
+                    "total_pages": total_pages,
+                    "content_type": "application/pdf"
+                }
+                
+                # Generate embedding and ingest
+                vector = container.embeddings.embed(text)
+                doc_id = await document_service.ingest_document(text, metadata)
+                payload = {
+                    "content": text,
+                    "metadata": metadata,
+                    "ingested_at": datetime.now(UTC).isoformat(),
+                }
+                await document_service.ingest_with_vector(doc_id, vector, payload)
+                
+                results.append({
+                    "page": page_num,
+                    "id": doc_id,
+                    "status": "success",
+                    "chars": len(text)
+                })
+            except Exception as e:
+                results.append({
+                    "page": page_num,
+                    "status": "error",
+                    "error": str(e)
+                })
+        
+        successful = sum(1 for r in results if r["status"] == "success")
+        
+        return {
+            "filename": file.filename,
+            "total_pages": total_pages,
+            "successful_pages": successful,
+            "results": results
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF upload failed: {str(e)}")
 
 
 @router.delete("/documents/{doc_id}")
