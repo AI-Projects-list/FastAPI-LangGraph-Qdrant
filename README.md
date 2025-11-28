@@ -7,7 +7,7 @@
 
 ---
 
-## 1. Folder Structure (Clean + Hexagonal)
+## Folder Structure (Clean + Hexagonal)
 
 ```text
 app/
@@ -60,11 +60,7 @@ tests/
     └── fake_workflow_engine.py
 ```
 
-You can run via:
 
-```bash
-uvicorn app.main:create_app --factory --reload
-```
 ---
 
 # **1. Analysis of the Existing Code (Design Smells & Risks)**
