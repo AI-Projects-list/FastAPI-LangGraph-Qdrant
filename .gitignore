@@ -1,0 +1,123 @@
+# ===============================
+# Python
+# ===============================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Byte-compiled
+*$py.class
+
+# Unit test / coverage
+.coverage
+.coverage.*
+.cache
+pytest_cache/
+htmlcov/
+nosetests.xml
+coverage.xml
+
+# ===============================
+# Environment / Secrets
+# ===============================
+.env
+.env.*
+!.env.example
+
+# Local environment files
+*.local
+*.secret
+
+# ===============================
+# Poetry
+# ===============================
+.venv/
+poetry.lock
+
+# ===============================
+# Virtualenv
+# ===============================
+venv/
+ENV/
+env/
+env.bak/
+
+# ===============================
+# Build & Packaging
+# ===============================
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ===============================
+# Logs
+# ===============================
+*.log
+logs/
+log/
+
+# ===============================
+# IDE / Editors
+# ===============================
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm / JetBrains
+.idea/
+*.iml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ===============================
+# Docker
+# ===============================
+docker-compose.override.yml
+docker-data/
+.qdrant/
+qdrant_data/
+data/
+
+# Images built locally
+*.tar
+
+# ===============================
+# OS Files
+# ===============================
+.DS_Store
+Thumbs.db
+
+# Linux filesystem anomalies
+*~
+.*~
+
+# ===============================
+# Project-specific
+# ===============================
+
+# App runtime state store
+state/
+app_state/
+tmp/
+
+# Generated zip or artifacts
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Qdrant local storage (mapped volume)
+qdrant/storage/
+
+# ===============================
+# Cache / Misc
+# ===============================
+.cache/
+.mypy_cache/
+.pytest_cache/
+.pdm.toml

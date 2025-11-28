@@ -1,0 +1,25 @@
+version: ""
+
+services:
+  api:
+    build: .
+    container_name: clean_api
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: "prod"
+      QDRANT_HOST: "qdrant"
+      QDRANT_PORT: "6334"
+    depends_on:
+      - qdrant
+
+  qdrant:
+    image: qdrant/qdrant
+    container_name: qdrant
+    ports:
+      - "6334:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  qdrant_data:

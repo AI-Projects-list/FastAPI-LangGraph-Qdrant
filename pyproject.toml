@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "clean-langgraph-qdrant"
+version = "0.1.0"
+description = "Clean + Hexagonal FastAPI app with LangGraph and Qdrant"
+authors = ["Your Name <you@example.com>"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.115.0"
+uvicorn = "^0.32.0"
+qdrant-client = "^1.9.0"
+langgraph = "*"
+pydantic-settings = "^2.6.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+httpx = "^0.27.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
