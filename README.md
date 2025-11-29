@@ -3,7 +3,7 @@
 
 ### *Based on the intentionally messy FastAPI + LangGraph + Qdrant implementation provided*
 
-[![Watch the video](https://img.youtube.com/vi/NciTzm6zMbA/hqdefault.jpg)](https://www.youtube.com/watch?v=zINWveB95Zc)
+[![Watch the video](https://img.youtube.com/vi/NciTzm6zMbA/hqdefault.jpg)](https://www.youtube.com/watch?v=GknPARfCKMs)
 
 ---
 
