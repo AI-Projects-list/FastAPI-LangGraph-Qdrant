@@ -30,5 +30,7 @@ jobs:
           poetry install
 
       - name: Run tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
-          poetry run pytest --maxfail=1 --disable-warnings -q
+          poetry run pytest tests/ -v --maxfail=1 --disable-warnings
